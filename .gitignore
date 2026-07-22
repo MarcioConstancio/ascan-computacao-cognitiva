@@ -10,7 +10,7 @@ wheels/
 .venv
 
 yolo_dataset
-doc
 runs
 car-plate-detection
 yolov8n.pt
+*.zip
