@@ -154,13 +154,9 @@ Para realizar análises de erro qualitativas, avaliar gráficos de perda ou test
 2. Abra o arquivo `Desafio_Ascan_ComputacaoCognitiva.ipynb`.
 3. Selecione o kernel do ambiente virtual `.venv` criado pelo `uv` ou pelo `venv`.
 4. Execute as células sequencialmente para visualizar as métricas do YOLO, matrizes de confusão e testes com o pipeline de OCR.
-```
 
----
 
-## 📈 Resultados Obtidos
-
-# Conclusões
+## Conclusões
 
 - O modelo yolov8.pt é capaz de detectar placas de veículos com uma boa precisão, mesmo em condições adversas, como iluminação ruim ou ângulos diferentes.
 - A utilização do OCR permite extrair o texto em parte das placas detectadas, tornando possível seu uso para reconhecimento de placas automotivas. Embora ainda seja possível fazer melhorias no pré-processamento das imagens, como ajuste de brilho, contraste e nitidez, para aumentar a precisão do OCR.
