@@ -1,16 +1,10 @@
 # Sistema de Reconhecimento Automático de Placas Automotivas (ALPR)
 
-Este repositório contém a solução para o desafio da trilha de Computação Cognitiva focada em Visão Computacional, como parte ASCAN, programa de Estágio do Instituto Atlântico. O objetivo do projeto é substituir um sistema legado de monitoramento de trânsito por um pipeline moderno de **Detecção de Objetos** e **Reconhecimento Óptico de Caracteres (OCR)**.
+Este repositório apresenta a solução para o desafio da trilha de Computação Cognitiva focada em Visão Computacional, como parte do ASCAN, programa de Estágio do Instituto Atlântico. O objetivo do projeto é substituir um sistema legado de monitoramento de trânsito por um pipeline moderno de **Detecção de Objetos** e **Reconhecimento Óptico de Caracteres (OCR)**.
 
 O sistema foi estruturado em duas etapas principais:
-1. **Detecção de Placas:** Realizada utilizando o modelo **YOLO8n** (Nano) ajustado via Transfer Learning.
+1. **Detecção de Placas:** Realizada utilizando o modelo **YOLOv8n** (Nano) ajustado via Transfer Learning.
 2. **Reconhecimento de Texto:** Processado por meio da biblioteca **EasyOCR**, integrada a um pipeline de pré-processamento avançado com OpenCV (CLAHE) e filtros geométricos.
-
----
-
-## 🛠️ Arquitetura do Pipeline
-
-O pipeline de inferência foi projetado para ser resiliente a variações de iluminação, ruídos e inclinações de ângulo da câmera:
 
 ---
 
@@ -20,18 +14,24 @@ O projeto está organizado da seguinte forma para garantir modularidade e reprod
 
 ```
 |pasta-atual-do-projeto
-├── doc/ # Imagens usadas na escrita do notebook e do README
+├── doc/ # Contém as imagens usadas na escrita do notebook e do README
 ├── models/
 │   ├───detector_placas.pt # Modelo YOLO8n treinado para detecção de placas
+│   ├───detector_placas_v8n_otimizado.pt # Modelo YOLO8n treinado no Google Colab em GPU + Early Stopping.
 │   └───detector_placas_v11.pt # Modelo YOLO11n treinado no Google Colab em GPU + Early Stopping.
-├── .python-version
+├── src/
+│   ├── download_data.py # Script para baixar o dataset do Kaggle
+│   ├── prepare_data.py # Script para converter Pascal VOC em YOLO e dividir em treino/validação
+│   ├── model_training.py # Script para treinar o modelo YOLO
+│   ├── pipeline_alpr.py # Pipeline de inferência para produção
+├── main.py # Script principal que abre aplicação Streamlit local capaz de processar imagens e exibir resultados
+├── Desafio_Ascan_ComputacaoCognitiva.ipynb # Notebook com todo o desenvolvimento do projeto, análises e resultados obtidos.
+├── README.md
 ├── data.yaml
 ├── pyproject.toml
 ├── uv.lock
-└── README.md
+└── .python-version
 ```
-Ao rodar o notebook `Desafio_Ascan_ComputacaoCognitiva.ipynb`, o pipeline de inferência é executado, processando imagens de teste e exibindo os resultados de detecção e reconhecimento de placas. Nestas condições, as pastas `car-plate-detection`, `runs` e `yolo_dataset` serão criadas na raiz do projeto.
-
 ---
 
 ## Conjunto de dados e Processo de ETL
@@ -53,60 +53,119 @@ O script também divide os dados de forma aleatória e consistente na proporçã
 
 ---
 
-## 🚀 Como Executar o Projeto
+## Como Executar o Projeto
 
-### 1. Clonar o Repositório e Instalar Dependências
+Este projeto foi estruturado para atender a dois perfis de uso distintos: o **Usuário/Avaliador**, que deseja apenas testar a interface gráfica final, e o **Cientista de Dados**, que deseja reproduzir ou modificar o ciclo completo de desenvolvimento (download, preparação, treino e análise).
+
+---
+
+### 1. Instalação e Preparação do Ambiente
+
+Antes de rodar qualquer uma das opções abaixo, clone o repositório e configure as dependências.
+
 ```bash
-git clone https://github.com/seu-usuario/nome-do-repositorio.git
-cd nome-do-repositorio
-pip install -r requirements.txt
+git clone git@github.com:MarcioConstancio/ascan-computacao-cognitiva.git
+cd ascan-computacao-cognitiva
 ```
 
-### 2. Baixar e Preparar os Dados
-1. Baixe os dados do Kaggle e descompacte-os dentro da pasta `data/raw/` de forma que fiquem divididos em `data/raw/images` e `data/raw/annotations`.
-2. Execute o script de preparação para estruturar o dataset do YOLO:
+#### Opção A: Usando `uv` (Recomendado - Mais rápido)
+Se você possui o `uv` instalado em sua máquina, o gerenciamento de ambiente é feito de forma automática:
 ```bash
-python src/prepare_data.py
+# Sincroniza o ambiente virtual (.venv) e instala todas as dependências do uv.lock
+uv sync
 ```
 
-### 3. Executar o Pipeline de Produção (Inferência)
-Para processar uma imagem de teste e extrair o caractere da placa, utilize o script de pipeline:
-```python
-from src.pipeline_alpr import ALPRPipelineProducao
+#### Opção B: Usando `pip` Tradicional
+Caso prefira o gerenciamento de pacotes padrão do Python:
+```bash
+# Cria o ambiente virtual
+python -m venv .venv
 
-# Instancia o pipeline com o modelo treinado
-pipeline = ALPRPipelineProducao(detector_path='models/detector_placas.pt')
+# Ativa o ambiente virtual
+# No Windows (PowerShell):
+.venv\Scripts\Activate.ps1
+# No Linux/macOS:
+source .venv/bin/activate
 
-# Processa a imagem
-imagem_teste = "caminho/para/imagem.png"
-img_rgb, deteccoes = pipeline.process_image(imagem_teste, conf_threshold=0.25)
-
-for det in deteccoes:
-    print(f"Placa Identificada: {det['plate_text']} (Confiança Detector: {det['confidence']:.2f})")
+# Instala as dependências a partir do pyproject.toml
+pip install --upgrade pip
+pip install .
 ```
 
 ---
 
-## 🧠 Análise Qualitativa de Erros e Qualidade do Dataset
+### 2. Como Executar como Usuário (Interface Web Streamlit)
 
-Durante a etapa de validação cruzada e filtragem de falsos positivos, foram identificados comportamentos importantes que ajudam a entender as limitações do modelo e a complexidade do dataset:
+Se o seu objetivo é apenas testar a ferramenta realizando inferências em novas imagens por meio de uma interface gráfica amigável:
 
-### 1. Ruído de Rotulação (*Label Noise*)
-* **Descoberta:** Na análise de imagens rotuladas como Falsos Positivos (ex: `Cars89`), observou-se que o modelo YOLO11n detectou corretamente placas de carros ao fundo. No entanto, o dataset original omitiu a anotação dessas placas secundárias no XML.
-* **Impacto:** Isso demonstra que a capacidade de generalização do modelo é excelente, superando em alguns casos as anotações feitas por anotadores humanos, embora isso reduza artificialmente as métricas de validação teóricas.
+1. **Garantir os Modelos:** Certifique-se de que o modelo treinado que deseja usar esteja localizado dentro da pasta `models/`.
+2. **Executar a Aplicação:**
 
-### 2. Distratores Visuais e Redundância
-* **Vazamento de dados:** Foram localizadas imagens duplicadas sob diferentes nomes no dataset (ex: `Cars18`, `Cars115` e `Cars161`), o que pode enviesar métricas se caírem em splits diferentes.
-* **Falsos Positivos de Interface:** Em capturas de tela de sistemas operacionais, o modelo chegou a confundir o grupo de botões virtuais do Windows (minimizar, maximizar e fechar) como sendo uma placa. A similaridade geométrica (linha fina horizontal, alto contraste e elementos que mimetizam caracteres) explica essa confusão.
+   * **Via `uv`:**
+     ```bash
+     uv run streamlit run main.py
+     ```
+   * **Via Python Tradicional (com venv ativo):**
+     ```bash
+     streamlit run main.py
+     ```
+
+3. **Utilização:** 
+   O navegador abrirá automaticamente o endereço `http://localhost:8501`. Na barra lateral, configure as preferências de confiança e IOU. Na tela principal, envie um arquivo de imagem local ou cole um link direto da internet para visualizar os resultados do detector e os caracteres extraídos pelo OCR.
+
+---
+
+### 3. Como Executar como Cientista de Dados (Pipeline de Desenvolvimento)
+
+Se você deseja reproduzir o pipeline do zero, treinar o modelo ou realizar experimentos avançados, siga os passos abaixo de forma sequencial na raiz do projeto:
+
+#### Passo 1: Download Automatizado dos Dados
+Baixa o dataset diretamente do Kaggle e o extrai para a raiz do diretório atual:
+
+```bash
+# Via uv
+uv run python src/download_data.py
+
+# Via venv ativo
+python src/download_data.py
+```
+
+#### Passo 2: ETL e Preparação de Dados
+Converte as anotações XML (Pascal VOC) em arquivos TXT (YOLO) e realiza a divisão de treino/validação (80%/20%), gerando a estrutura final em `data/yolo_dataset/`:
+```bash
+# Via uv
+uv run python src/prepare_data.py
+# Via venv ativo
+python src/prepare_data.py
+```
+
+#### Passo 3: Treinamento do Modelo (Opcional)
+Inicia o treinamento do modelo YOLO localmente (recomendado apenas se possuir GPU dedicada):
+```bash
+# Via uv
+uv run python src/model_training.py
+# Via venv ativo
+python src/model_training.py
+```
+
+#### Passo 4: Exploração de Resultados e Métricas (Notebook)
+Para realizar análises de erro qualitativas, avaliar gráficos de perda ou testar protótipos de pipeline de forma interativa:
+1. Abra o seu editor (por exemplo, VS Code) na pasta do projeto.
+2. Abra o arquivo `Desafio_Ascan_ComputacaoCognitiva.ipynb`.
+3. Selecione o kernel do ambiente virtual `.venv` criado pelo `uv` ou pelo `venv`.
+4. Execute as células sequencialmente para visualizar as métricas do YOLO, matrizes de confusão e testes com o pipeline de OCR.
+```
 
 ---
 
 ## 📈 Resultados Obtidos
 
-* O treinamento do **YOLO11n** foi realizado no Google Colab sob uma GPU Tesla T4 utilizando a técnica de *Early Stopping* para prevenir o sobreajuste [1.2.6].
-* O pipeline de pré-processamento **CLAHE + Remoção de Binarização Rígida** permitiu que o EasyOCR fizesse leituras estáveis mesmo em veículos posicionados de perfil (ângulos inclinados).
-* O **Filtro de Altura Relativa** foi eficaz em remover ruídos textuais (como o nome de estados ou cidades nas placas), isolando apenas o código alfanumérico principal.
+# Conclusões
+
+- O modelo yolov8.pt é capaz de detectar placas de veículos com uma boa precisão, mesmo em condições adversas, como iluminação ruim ou ângulos diferentes.
+- A utilização do OCR permite extrair o texto em parte das placas detectadas, tornando possível seu uso para reconhecimento de placas automotivas. Embora ainda seja possível fazer melhorias no pré-processamento das imagens, como ajuste de brilho, contraste e nitidez, para aumentar a precisão do OCR.
+- Outra opção seria utilizar modelos de OCR especializados em placas como [LPRNet](https://catalog.ngc.nvidia.com/orgs/nvidia/tao/models/lprnet/-?_lr=1), baseado em redes neurais convolucionais.
 
 ---
 
-*Desafio desenvolvido para fins acadêmicos e de avaliação de Computação Cognitiva.*
+*Desafio desenvolvido para fins acadêmicos e de avaliação na trilha Computação Cognitiva.*
